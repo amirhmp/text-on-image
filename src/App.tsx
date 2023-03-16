@@ -86,6 +86,11 @@ function App() {
     run();
   };
 
+  const handleTest = () => {
+    const context = canvasRef.current!.getContext("2d")!;
+    context.clearRect(100, 100, 100, 100);
+  };
+
   return (
     <div className="h-screen relative bg-slate-800 overflow-hidden">
       <div className="bg-slate-600 w-full absolute bottom-0 right-0 shadow-lg rounded-t">
@@ -114,9 +119,8 @@ function App() {
               onChange={onExcelUploaded}
             />
           </div>
-          <div className="">
-            <Button onClick={handleRun} title="Run" />
-          </div>
+          <Button onClick={handleRun} title="Run" />
+          <Button onClick={handleTest} title="test" />
         </div>
       </div>
       <canvas
