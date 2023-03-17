@@ -1,44 +1,40 @@
-import { useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import readXlsxFile from "read-excel-file";
 import "./App.css";
 import Button from "./components/Button";
+import Draggable from "./components/Draggable";
+import DropDown from "./components/DropDown";
 import { downloadImage, loadImage, mergeImageNText } from "./utils/mimage";
 
-async function main() {
-  // const canvas = document.getElementById("myCanvas");
-  // const ctx = canvas.getContext("2d");
-  // ctx.font = "30px iransans";
-  // ctx.fillStyle = "#000";
-  // const link = document.createElement("a");
-  // const bgImage = await loadImage("./assets/images/img.png");
-  // const name = "امیرحسین مهدی پور"; // const names = readNamesFromExcel("./assets/names.xlsx");
-  // const names = ["علی اکبر رستمی", "اصغر دهقان"];
-  // for (let i = 0; i < names.length; i++) {
-  //   const name = names[i];
-  //   mergeImageNText(ctx, bgImage, canvas.width, canvas.height, name, 100, 100);
-  //   downloadImage(link, canvas, `${i + 1}_${name}`);
-  // }
-}
+const alignments: Array<{ title: string; value: CanvasTextAlign }> = [
+  { title: "Center", value: "center" },
+  { title: "RTL", value: "right" },
+  { title: "LTR", value: "left" },
+];
 
 function App() {
-  const namesRef = useRef<Array<[string, string]>>([]);
-  const bgImageRef = useRef<string | undefined>(undefined);
+  const [names, setNames] = useState<Array<[string, string]>>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [bgImageUrl, setBgImageUrl] = useState<string | undefined>(undefined);
+  const [textAlign, setTextAlign] = useState(alignments[0]);
+  const [color, setColor] = useState("#000");
+  const [fontSize, setFontSize] = useState("30");
 
   const onExcelUploaded = async ({
     target,
   }: React.ChangeEvent<HTMLInputElement>) => {
     const file = target!.files![0];
     const rows = await readXlsxFile(file);
-    namesRef.current = rows as any;
+    setNames(rows as any);
   };
 
   const onBgImageUploaded = async ({
     target,
   }: React.ChangeEvent<HTMLInputElement>) => {
     const file = target!.files![0];
-    bgImageRef.current = URL.createObjectURL(file);
-    const bgImage = (await loadImage(bgImageRef.current)) as HTMLImageElement;
+    const bgImageUrl = URL.createObjectURL(file);
+    const bgImage = (await loadImage(bgImageUrl)) as HTMLImageElement;
     console.log(bgImage.width, bgImage.height);
 
     const canvas = canvasRef.current!;
@@ -47,6 +43,7 @@ function App() {
     const context = canvas!.getContext("2d")!;
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(bgImage, 0, 0);
+    setBgImageUrl(bgImageUrl);
   };
 
   const handleRun = () => {
@@ -55,14 +52,15 @@ function App() {
       const ctx = canvas.getContext("2d");
       if (!ctx) throw Error("ctx is undefined");
 
-      ctx.font = "30px iransans";
-      ctx.fillStyle = "#000";
+      ctx.font = `${fontSize}px iransans`;
+      ctx.fillStyle = color;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = textAlign.value;
       const link = document.createElement("a");
 
       // const bgImage = await loadImage("./assets/images/img.png");
-      const bgImage = await loadImage(bgImageRef.current);
+      const bgImage = await loadImage(bgImageUrl);
 
-      const names = namesRef.current;
       if (names.length === 0)
         return console.log("excel not selected or is empty");
 
@@ -76,8 +74,8 @@ function App() {
           canvas.width,
           canvas.height,
           name,
-          100,
-          100
+          textPos.current.x,
+          textPos.current.y
         );
         downloadImage(link, canvas, `${i + 1}_${name}`);
       }
@@ -86,17 +84,54 @@ function App() {
     run();
   };
 
-  const handleTest = () => {
-    const context = canvasRef.current!.getContext("2d")!;
-    context.clearRect(100, 100, 100, 100);
-  };
+  const handleYPos = useCallback((x: number, y: number) => {
+    textPos.current.y = y + 24;
+  }, []);
+
+  const handleXPos = useCallback((x: number, y: number) => {
+    textPos.current.x = x;
+  }, []);
 
   return (
-    <div className="h-screen relative bg-slate-800 overflow-hidden">
+    <div className="h-screen relative bg-slate-800 overflow-hidden cursor-row-resize">
+      <div className="relative">
+        {bgImageUrl && (
+          <Draggable
+            className="h-12 bg-red-400/70"
+            style={{ width: canvasRef.current?.width }}
+            parentOffsetTop={0}
+            parentOffsetLeft={0}
+            disableX
+            onDragEnd={handleYPos}
+          >
+            <Draggable
+              className="w-4 h-full bg-green-400 cursor-col-resize"
+              parentOffsetTop={0}
+              parentOffsetLeft={0}
+              disableY
+              onDragEnd={handleXPos}
+            ></Draggable>
+          </Draggable>
+        )}
+        <canvas
+          ref={canvasRef}
+          id="myCanvas"
+          width={0}
+          height={0}
+          style={{ border: "1px solid #d3d3d3" }}
+        >
+          Your browser does not support the canvas element.
+        </canvas>
+      </div>
       <div className="bg-slate-600 w-full absolute bottom-0 right-0 shadow-lg rounded-t">
         <div className="flex justify-center items-center gap-4">
           <div>
-            <label htmlFor="input-image" className="button">
+            <label
+              htmlFor="input-image"
+              className={`button ${
+                bgImageUrl !== undefined ? "!bg-green-500" : ""
+              }`}
+            >
               Select Background Image
             </label>
             <input
@@ -108,7 +143,10 @@ function App() {
             />
           </div>
           <div>
-            <label htmlFor="input-excel" className="button">
+            <label
+              htmlFor="input-excel"
+              className={`button ${names.length !== 0 ? "!bg-green-500" : ""}`}
+            >
               Select Excel
             </label>
             <input
@@ -119,19 +157,33 @@ function App() {
               onChange={onExcelUploaded}
             />
           </div>
-          <Button onClick={handleRun} title="Run" />
-          <Button onClick={handleTest} title="test" />
+          <DropDown
+            items={alignments}
+            titleExtractor={(type) => type.title}
+            valueExtractor={(type) => type.value + ""}
+            selectedItem={textAlign}
+            onChange={(t) => setTextAlign(t)}
+          />
+
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+          />
+          <input
+            type="text"
+            className="w-12 text-center"
+            placeholder="fontsize"
+            value={fontSize}
+            onChange={(e) => setFontSize(e.target.value)}
+          />
+          <Button
+            onClick={handleRun}
+            disabled={names.length === 0 || bgImageUrl === undefined}
+            title="Run"
+          />
         </div>
       </div>
-      <canvas
-        ref={canvasRef}
-        id="myCanvas"
-        width="500"
-        height="500"
-        style={{ border: "1px solid #d3d3d3" }}
-      >
-        Your browser does not support the canvas element.
-      </canvas>
     </div>
   );
 }

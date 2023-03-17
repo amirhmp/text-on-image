@@ -9,6 +9,9 @@ export async function mergeImageNText(
 ) {
   canvasContext.clearRect(0, 0, width, height);
   canvasContext.drawImage(image, 0, 0);
+
+  const textWidth = canvasContext.measureText(text).width;
+  // canvasContext.fillText(text, width / 2 - textWidth / 2, y);
   canvasContext.fillText(text, x, y);
 }
 
