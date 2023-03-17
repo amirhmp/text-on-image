@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import readXlsxFile from "read-excel-file";
 import "./App.css";
 import Button from "./components/Button";
-import Draggable from "./components/Draggable";
+import Draggable, { IDraggableRef } from "./components/Draggable";
 import DropDown from "./components/DropDown";
 import { downloadImage, loadImage, mergeImageNText } from "./utils/mimage";
 
@@ -20,6 +20,7 @@ function App() {
   const [textAlign, setTextAlign] = useState(alignments[0]);
   const [color, setColor] = useState("#000");
   const [fontSize, setFontSize] = useState("30");
+  const xDragRef = useRef<IDraggableRef | null>(null);
 
   const onExcelUploaded = async ({
     target,
@@ -43,6 +44,7 @@ function App() {
     const context = canvas!.getContext("2d")!;
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(bgImage, 0, 0);
+    xDragRef.current!.setX(bgImage.width / 2 - 8);
     setBgImageUrl(bgImageUrl);
   };
 
@@ -95,24 +97,24 @@ function App() {
   return (
     <div className="h-screen relative bg-slate-800 overflow-hidden cursor-row-resize">
       <div className="relative">
-        {bgImageUrl && (
+        <Draggable
+          className={`h-12 bg-red-400/70 ${bgImageUrl ? "" : "hidden"}`}
+          style={{ width: canvasRef.current?.width }}
+          parentOffsetTop={0}
+          parentOffsetLeft={0}
+          disableX
+          onDragEnd={handleYPos}
+        >
           <Draggable
-            className="h-12 bg-red-400/70"
-            style={{ width: canvasRef.current?.width }}
+            ref={xDragRef}
+            className="w-4 h-full bg-green-400 cursor-col-resize"
             parentOffsetTop={0}
             parentOffsetLeft={0}
-            disableX
-            onDragEnd={handleYPos}
-          >
-            <Draggable
-              className="w-4 h-full bg-green-400 cursor-col-resize"
-              parentOffsetTop={0}
-              parentOffsetLeft={0}
-              disableY
-              onDragEnd={handleXPos}
-            ></Draggable>
-          </Draggable>
-        )}
+            disableY
+            onDragEnd={handleXPos}
+          ></Draggable>
+        </Draggable>
+
         <canvas
           ref={canvasRef}
           id="myCanvas"
@@ -175,11 +177,14 @@ function App() {
             className="w-12 text-center"
             placeholder="fontsize"
             value={fontSize}
+            maxLength={2}
             onChange={(e) => setFontSize(e.target.value)}
           />
           <Button
             onClick={handleRun}
-            disabled={names.length === 0 || bgImageUrl === undefined}
+            disabled={
+              names.length === 0 || bgImageUrl === undefined || !fontSize
+            }
             title="Run"
           />
         </div>
